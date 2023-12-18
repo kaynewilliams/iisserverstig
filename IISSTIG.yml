@@ -1,0 +1,68 @@
+---
+- name: Ansible & DSC Playbook for IIS STIG
+  hosts: all
+  gather_facts: true
+  become: yes
+  become_method: runas
+  become_user: WinLabAAP #is admin
+
+  tasks:
+    - name: Install NuGet provider
+      win_shell: |
+        Install-PackageProvider -Name NuGet -Force -Scope CurrentUser
+      become: yes
+      become_user: WinLabAAP
+      ignore_errors: true
+
+    - name: Install PowerShellGet
+      win_shell: |
+        if (-not(Get-Module -ListAvailable -Name PowerShellGet)) {
+            Install-Module -Name PowerShellGet -Force -AllowClobber
+        }
+      args:
+        executable: powershell.exe
+      become: yes
+      become_user: WinLabAAP
+      ignore_errors: true
+
+    - name: Install PowerStig
+      win_shell: |
+        if (-not(Get-Module -ListAvailable -Name PowerSTIG)) {
+            Install-Module -Name PowerSTIG -Force
+        }
+      args:
+        executable: powershell.exe
+      become: yes
+      become_user: WinLabAAP
+      ignore_errors: true
+
+    - name: PowerSTIG prereqs not necessarily covered in previous task
+      win_psmodule:
+        name: "{{ item.name }}"
+        required_version: "{{ item.version }}"
+        state: present
+        allow_clobber: yes
+      loop:
+        - name: AuditPolicyDsc
+          version: 1.4.0.0
+        - name: SecurityPolicyDsc
+          version: 2.10.0.0
+        - name: PSDscResources
+          version: 2.12.0.0
+      become: yes
+      become_user: WinLabAAP
+      ignore_errors: true
+
+    - name: Generate PowerSTIG DSC MOF
+      win_shell: |
+        {{ lookup('template', 'templates/iis_stig_dsc.ps.j2') }} 
+      become: yes
+      become_user: WinLabAAP
+      ignore_errors: true
+
+    - name: Apply generated PowerSTIG MOF
+      win_shell: |
+        Start-DscConfiguration -Path C:\Windows\iisstig -Force -Wait -Verbose
+      become: yes
+      become_user: WinLabAAP
+      ignore_errors: true
