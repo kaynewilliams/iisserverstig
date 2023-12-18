@@ -1,0 +1,23 @@
+
+configuration iisstig
+{
+    param
+    (
+        [parameter()]
+        [string]
+        $NodeName = 'localhost'
+    )
+
+    Import-DscResource -ModuleName PowerStig
+
+    Node localhost
+    {
+        IisServer BaseLine
+        {
+            IIsVersion = '10.0'
+            LogPath    = 'C:\logs'
+        }
+    }
+}
+
+iisstg 
